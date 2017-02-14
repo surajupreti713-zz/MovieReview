@@ -12,6 +12,7 @@ The following **required** functionality is complete:
 - [√] Poster images are loaded using the UIImageView category in the AFNetworking library.
 - [√] User sees a loading state while waiting for the movies API.
 - [√] User can pull to refresh the movie list.
+- [√] User can view movie details by tapping on a cell.
 
 The following **optional** features are implemented:
 
@@ -20,6 +21,7 @@ The following **optional** features are implemented:
 - [√] User can search for a movie.
 - [ ] All images fade in as they are loading.
 - [ ] Customize the UI.
+- [√] Customize the navigation bar
 
 The following **additional** features are implemented:
 
@@ -34,7 +36,7 @@ Please list two areas of the assignment you'd like to **discuss further with you
 
 Here's a walkthrough of implemented user stories:
 
-<img src='http://i.imgur.com/t7N4Xcy.gif' title='Video Walkthrough' width='' alt='Video Walkthrough' />
+<img src='http://i.imgur.com/7CFyACJ.gif' title='Video Walkthrough' width='' alt='Video Walkthrough' />
 
 GIF created with [LiceCap](http://www.cockos.com/licecap/).
 

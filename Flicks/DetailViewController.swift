@@ -33,7 +33,7 @@ class DetailViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        detailsLabel.layer.cornerRadius = 7 //round edges of the label
+        detailsLabel.layer.cornerRadius = 7
         scrollView.contentSize = CGSize(width: scrollView.frame.size.width, height: infoView.frame.origin.y + infoView.frame.size.height + 10)
         
         navigationText.title = movieTitle

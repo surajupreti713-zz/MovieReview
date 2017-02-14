@@ -10,12 +10,20 @@ import UIKit
 import AFNetworking
 import MBProgressHUD
 
-class MoviesViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate {
+class MoviesViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, UIScrollViewDelegate{
     var searchBar: UISearchBar!
     
     var movies: [NSDictionary]?
     var filteredMovies: [NSDictionary]?
     
+    
+    var endPoint: String?
+    var loadingMoreView: InfiniteScrollActivityView?
+    var isMoreDataLoading = false
+    var page: Int = 2
+    
+    ////////////////////////////////////////////
+    @IBOutlet weak var navBarFirstPage: UINavigationItem!
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var errorView: UIView!
     
@@ -23,21 +31,83 @@ class MoviesViewController: UIViewController, UITableViewDataSource, UITableView
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        filteredMovies = movies
-        
-        //hiding the keyboard when the user taps anywhere but the search bar
-        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: "dismissKeyboard")
-        view.addGestureRecognizer(tap)
+        filteredMovies = movies;
         
         errorView.isHidden = true
+        
+        tableView.dataSource = self
+        tableView.delegate = self
+        
+        
+        refreshControl.tintColor = UIColor(red: 0.0, green: 1.0, blue: 0.0, alpha: 1.0)
         refreshControl.addTarget(self, action: #selector(refreshControlAction(_:)), for: UIControlEvents.valueChanged)
         tableView.insertSubview(refreshControl, at: 0)
-        tableView.dataSource = self
-        tableView.delegate = self     //this will confirm the delegate for the table view
+        
         createSearchBar()
         requestNetwork()
     }
     
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        // Handle scroll behavior here
+        if (!isMoreDataLoading) {
+            let scrollViewContentHeight = tableView.contentSize.height
+            let scrollOffsetThreshold = scrollViewContentHeight - tableView.bounds.size.height
+            // When the user has scrolled past the threshold, start requesting
+            if(scrollView.contentOffset.y > scrollOffsetThreshold && tableView.isDragging) {
+                isMoreDataLoading = true
+                
+                // Update position of loadingMoreView, and start loading indicator
+                let frame = CGRect(x: 0, y: tableView.contentSize.height, width: tableView.bounds.size.width, height: InfiniteScrollActivityView.defaultHeight)
+                loadingMoreView?.frame = frame
+                loadingMoreView!.startAnimating()
+                
+                // ... Code to load more results ...
+                loadMoreData()
+            }
+        }
+    }
+    
+    func loadMoreData() {
+        
+        // ... Create the NSURLRequest (myRequest) ...
+        let apiKey = "a07e22bc18f5cb106bfe4cc1f83ad8ed"
+        let url = URL(string: "https://api.themoviedb.org/3/movie/\(endPoint!)?api_key=\(apiKey)&page=\(page)")!
+        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        // Configure session so that completion handler is executed on main UI thread
+        let session = URLSession(
+            configuration: URLSessionConfiguration.default,
+            delegate:nil,
+            delegateQueue:OperationQueue.main
+        )
+        
+        let task : URLSessionDataTask = session.dataTask(with: request,completionHandler: { (data, response, error) in
+            
+            // Update flag
+            self.isMoreDataLoading = false
+            
+            // Stop the loading indicator
+            self.loadingMoreView!.stopAnimating()
+            
+            // ... Use the new data to update the data source ...
+            if let data = data {
+                if let dataDictionary = try! JSONSerialization.jsonObject(with: data, options: []) as? NSDictionary {
+                    let responseData = dataDictionary["results"] as? [NSDictionary]
+                    if let responseData = responseData {
+                        self.movies! += responseData as [NSDictionary]
+                        self.page += 1
+                    }
+                }
+            }
+            else {
+                self.errorView.isHidden = false
+            }
+            // Reload the tableView now that there is new data
+            self.tableView.reloadData()
+        });
+        task.resume()
+    }
+    
+  
     func dismissKeyboard() {
         view.endEditing(true)
     }
@@ -94,6 +164,15 @@ class MoviesViewController: UIViewController, UITableViewDataSource, UITableView
         }
     }
     
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String){
+        self.filteredMovies = searchText.isEmpty ? movies : movies?.filter({(movie: NSDictionary) -> Bool in
+            // If dataItem matches the searchText, return true to include it
+            return (movie["title"] as? String)?.range(of: searchText, options: .caseInsensitive) != nil
+        })
+        tableView.reloadData()
+    }
+
+    
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "MovieCell", for: indexPath) as! MovieCell
         let movie = self.filteredMovies![indexPath.row]
@@ -109,14 +188,24 @@ class MoviesViewController: UIViewController, UITableViewDataSource, UITableView
         return cell
     }
     
-    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String){
-        self.filteredMovies = searchText.isEmpty ? movies : movies?.filter({(movie: NSDictionary) -> Bool in
-            // If dataItem matches the searchText, return true to include it
-            return (movie["title"] as? String)?.range(of: searchText, options: .caseInsensitive) != nil
-        })
-        tableView.reloadData()
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {                              ///////////////////////////
+        let indexPath = tableView.indexPathForSelectedRow
+        let index = indexPath?.row
+        let detailsViewController = segue.destination as! DetailViewController
+        let movie = movies![index!]
+        let title = movie["title"] as! String
+        detailsViewController.movieTitle = title
+        let releaseDate = movie["release_date"] as! String
+        detailsViewController.releaseDate = releaseDate
+        let overview = movie["overview"] as! String
+        detailsViewController.textDetails = overview
+        let rating = movie["vote_average"] as! Float
+        detailsViewController.rating = rating
+        let posterPath = movie["poster_path"] as! String
+        let baseURL = "https://image.tmdb.org/t/p/w500/"
+        let imageURLString = baseURL + posterPath
+        detailsViewController.imageUrlString = imageURLString
     }
-    
     
 
     override func didReceiveMemoryWarning() {
